@@ -83,16 +83,70 @@ function AdaptationReviewContent() {
       setError('Missing resume URL')
       return
     }
+    if (!idea_id || !submitted_by) {
+      setError('Missing idea_id or submitted_by in link')
+      setIsSubmitting(false)
+      return
+    }
+    if (!data?.adaptations) {
+      setError('Adaptations not loaded yet')
+      setIsSubmitting(false)
+      return
+    }
+
     setIsSubmitting(true)
     try {
+      // Workflow B can only publish correctly if it receives the adaptation content.
+      // Send the single decision as `decisions[]` with content/subject.
+      let decisions: any[] = []
+
+      if (platform === 'linkedin' && data.adaptations.linkedin) {
+        decisions = [
+          {
+            action: 'approve',
+            platform: 'LinkedIn',
+            content: data.adaptations.linkedin.content,
+          }
+        ]
+      }
+
+      if (platform === 'x' && data.adaptations.x) {
+        const xContent = data.adaptations.x.content || ''
+        const is_thread = /\(\d+\/\d+\)/.test(xContent)
+        decisions = [
+          {
+            action: 'approve',
+            platform: 'X',
+            content: xContent,
+            is_thread
+          }
+        ]
+      }
+
+      if (platform === 'email' && data.adaptations.email) {
+        decisions = [
+          {
+            action: 'approve',
+            platform: 'Email',
+            content: data.adaptations.email.content || '',
+            subject: data.adaptations.email.subject_line || ''
+          }
+        ]
+      }
+
+      if (decisions.length === 0) {
+        setError('Missing adaptation content for selected platform')
+        setIsSubmitting(false)
+        return
+      }
+
       const response = await fetch(resume_url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          action: 'approve',
-          platform: platform,
           idea_id,
           submitted_by,
+          decisions,
         }),
       })
 
