@@ -30,6 +30,8 @@ function AdaptationReviewContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const resume_url = searchParams.get('resume_url')
+  const idea_id = searchParams.get('idea_id') || ''
+  const submitted_by = searchParams.get('submitted_by') || ''
 
   const [data, setData] = useState<AdaptationData | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -43,7 +45,6 @@ function AdaptationReviewContent() {
   useEffect(() => {
     // The instructions said "GET https://cohort2pod2.app.n8n.cloud/webhook/get-adaptations?idea_id={idea_id}"
     // so we need idea_id, not draft_id.
-    const idea_id = searchParams.get('idea_id')
     if (!idea_id) {
       setError('Invalid or expired link')
       setIsLoading(false)
@@ -90,6 +91,8 @@ function AdaptationReviewContent() {
         body: JSON.stringify({
           action: 'approve',
           platform: platform,
+          idea_id,
+          submitted_by,
         }),
       })
 
