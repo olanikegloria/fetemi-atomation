@@ -4,14 +4,17 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   AlertCircle, CheckCircle2, Loader2,
-  Sparkles, ArrowRight, Menu, X, Lightbulb, Link2,
+  Sparkles, ArrowRight, Lightbulb, Link2,
 } from 'lucide-react'
 import Link from 'next/link'
+import { AppNav } from '@/components/AppNav'
+import { useAuth } from '@/hooks/useAuth'
+import { n8nFetch } from '@/lib/auth/n8n-fetch'
 
 export default function IntakePage() {
   const router = useRouter()
+  const { user, role, session, signOut } = useAuth()
   const [isMounted, setIsMounted] = useState(false)
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [inputType, setInputType] = useState<'idea' | 'url'>('idea')
   const [rawInput, setRawInput] = useState('')
   const [email, setEmail] = useState('')
@@ -22,6 +25,10 @@ export default function IntakePage() {
   const [generalError, setGeneralError] = useState('')
 
   useEffect(() => { setIsMounted(true) }, [])
+
+  useEffect(() => {
+    if (user?.email) setEmail((prev) => (prev.trim() ? prev : user.email!))
+  }, [user?.email])
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {}
@@ -44,8 +51,9 @@ export default function IntakePage() {
     if (!validateForm()) return
     setIsLoading(true)
     try {
-      const response = await fetch('https://cohort2pod2.app.n8n.cloud/webhook/content-intake', {
+      const response = await n8nFetch('content-intake', {
         method: 'POST',
+        accessToken: session?.access_token ?? null,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name, email, content_input: rawInput, input_type: inputType }),
       })
@@ -54,7 +62,7 @@ export default function IntakePage() {
         return
       }
       setIsSuccess(true)
-      if (isMounted) setTimeout(() => router.push('/draft-review'), 2000)
+      if (isMounted) setTimeout(() => router.push('/dashboard'), 2000)
     } catch {
       setGeneralError('Network error occurred')
     } finally {
@@ -88,45 +96,9 @@ export default function IntakePage() {
         <div style={{ position: 'absolute', bottom: '-10%', left: '-5%', width: '40vw', height: '40vw', borderRadius: '50%', background: 'radial-gradient(circle, rgba(168,85,247,0.10) 0%, transparent 70%)', filter: 'blur(40px)' }} />
       </div>
 
-      {/* ── navbar ── */}
-      <header style={{ position: 'sticky', top: 0, zIndex: 50, borderBottom: '1px solid rgba(255,255,255,0.06)', background: 'rgba(8,8,8,0.85)', backdropFilter: 'blur(20px)' }}>
-        <div style={{ maxWidth: '80rem', margin: '0 auto', padding: '0 1.5rem', height: '4rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', textDecoration: 'none' }}>
-            <div style={{ width: '2.25rem', height: '2.25rem', borderRadius: '0.625rem', background: 'linear-gradient(135deg, #ec4899, #a855f7)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 0 16px rgba(236,72,153,0.35)' }}>
-              <Sparkles style={{ width: '1.1rem', height: '1.1rem', color: 'white' }} />
-            </div>
-            <div>
-              <div style={{ fontWeight: 700, fontSize: '1rem', color: 'white', lineHeight: 1 }}>Fetemi</div>
-              <div style={{ fontSize: '0.65rem', color: '#ec4899', marginTop: '1px', fontWeight: 500, letterSpacing: '0.05em', textTransform: 'uppercase' }}>AI Content</div>
-            </div>
-          </Link>
-
-          <nav className="desktop-nav" style={{ display: 'flex', gap: '0.25rem' }}>
-            {([
-              { label: 'Submit', href: '/intake', active: true },
-              { label: 'Review Drafts', href: '/draft-review', active: false },
-              { label: 'Adapt Content', href: '/adaptation-review', active: false },
-              { label: 'Dashboard', href: '/dashboard', active: false },
-            ] as const).map(item => (
-              <Link key={item.href} href={item.href} style={{ padding: '0.4rem 0.875rem', borderRadius: '0.5rem', fontSize: '0.875rem', fontWeight: item.active ? 600 : 400, color: item.active ? 'white' : '#6b7280', background: item.active ? 'rgba(236,72,153,0.12)' : 'transparent', border: item.active ? '1px solid rgba(236,72,153,0.25)' : '1px solid transparent', textDecoration: 'none' }}>
-                {item.label}
-              </Link>
-            ))}
-          </nav>
-
-          <button className="mobile-menu-btn" onClick={() => setMobileMenuOpen(!mobileMenuOpen)} style={{ color: 'white', background: 'none', border: 'none', cursor: 'pointer', padding: '0.5rem', display: 'none' }}>
-            {mobileMenuOpen ? <X size={22} /> : <Menu size={22} />}
-          </button>
-        </div>
-
-        {mobileMenuOpen && (
-          <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', background: 'rgba(8,8,8,0.97)', backdropFilter: 'blur(20px)', padding: '1rem 1.5rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-            {[{ label: 'Submit', href: '/intake' }, { label: 'Review Drafts', href: '/draft-review' }, { label: 'Adapt Content', href: '/adaptation-review' }, { label: 'Dashboard', href: '/dashboard' }].map(item => (
-              <Link key={item.href} href={item.href} style={{ color: '#d1d5db', textDecoration: 'none', fontSize: '0.9rem', padding: '0.5rem 0' }}>{item.label}</Link>
-            ))}
-          </div>
-        )}
-      </header>
+      <div style={{ position: 'relative', zIndex: 50 }}>
+        <AppNav role={role} email={user?.email} onSignOut={signOut} active="intake" />
+      </div>
 
       {/* ── split layout ── */}
       <main style={{ position: 'relative', zIndex: 1, minHeight: 'calc(100vh - 4rem)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2rem 1.5rem' }}>
@@ -174,7 +146,7 @@ export default function IntakePage() {
 
           {/* Right — form panel */}
           <div style={{ flex: '1', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '3rem 2rem', background: 'rgba(255,255,255,0.01)' }}>
-            <div style={{ width: '100%', maxWidth: '26rem', animation: 'slideInUp 0.5s ease-out' }}>
+            <div style={{ width: '100%', maxWidth: '34rem', animation: 'slideInUp 0.5s ease-out' }}>
               
               {/* heading */}
               <div style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
